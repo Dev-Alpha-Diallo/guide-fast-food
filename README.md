@@ -597,3 +597,526 @@ Dis-moi juste : **“Oui, envoie le squelette Laravel”** et je te fournis les 
 ---
 
 Si tu veux, je commence **tout de suite** et je te donne le **squelette complet** (migrations + models + controllers + vues) avec commentaires ligne par ligne. Veux-tu que je te l’envoie maintenant ?
+
+
+
+Voici le **squelette complet** du projet **FastBite (Laravel)**, prêt à copier-coller dans ton dossier Laravel.
+J’ai organisé les fichiers en **sections**, avec **commentaires** pour t’expliquer chaque partie.
+👉 **But** : Tu colles ces fichiers dans ton projet (après avoir suivi l’installation du guide précédent) et tu exécutes `php artisan migrate` puis `php artisan serve` pour voir l’application.
+
+---
+
+## 📂 Structure du projet (à mettre dans `fastbite-laravel/`)
+
+```
+app/
+ └─ Models/
+      Category.php
+      Product.php
+      Order.php
+      OrderItem.php
+ └─ Http/
+      Controllers/
+          ProductController.php
+          CartController.php
+          OrderController.php
+database/
+ └─ migrations/
+      2025_01_01_000001_create_categories_table.php
+      2025_01_01_000002_create_products_table.php
+      2025_01_01_000003_create_orders_table.php
+      2025_01_01_000004_create_order_items_table.php
+      2025_01_01_000005_add_role_to_users_table.php
+resources/
+ └─ views/
+      layouts/app.blade.php
+      products/index.blade.php
+      cart/index.blade.php
+routes/
+ └─ web.php
+```
+
+---
+
+### 1️⃣ Migrations – (dans `database/migrations/`)
+
+📄 **create\_categories\_table.php**
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->timestamps();
+        });
+    }
+    public function down(): void {
+        Schema::dropIfExists('categories');
+    }
+};
+```
+
+📄 **create\_products\_table.php**
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('category_id')->constrained()->cascadeOnDelete();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->decimal('price', 8, 2);
+            $table->string('image')->nullable();
+            $table->boolean('is_available')->default(true);
+            $table->timestamps();
+        });
+    }
+    public function down(): void {
+        Schema::dropIfExists('products');
+    }
+};
+```
+
+📄 **create\_orders\_table.php**
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->decimal('total', 10, 2)->default(0);
+            $table->string('status')->default('pending'); // pending, preparing, ready, delivered
+            $table->text('address')->nullable();
+            $table->string('payment_status')->default('unpaid');
+            $table->timestamps();
+        });
+    }
+    public function down(): void {
+        Schema::dropIfExists('orders');
+    }
+};
+```
+
+📄 **create\_order\_items\_table.php**
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void {
+        Schema::create('order_items', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('product_id')->constrained()->cascadeOnDelete();
+            $table->integer('qty')->default(1);
+            $table->decimal('price', 8, 2);
+            $table->timestamps();
+        });
+    }
+    public function down(): void {
+        Schema::dropIfExists('order_items');
+    }
+};
+```
+
+📄 **add\_role\_to\_users\_table.php**
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void {
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('role')->default('client'); // client, admin
+        });
+    }
+    public function down(): void {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('role');
+        });
+    }
+};
+```
+
+---
+
+### 2️⃣ Modèles – (dans `app/Models/`)
+
+📄 **Category.php**
+
+```php
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+
+class Category extends Model {
+    protected $fillable = ['name','slug'];
+
+    public function products() {
+        return $this->hasMany(Product::class);
+    }
+}
+```
+
+📄 **Product.php**
+
+```php
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+
+class Product extends Model {
+    protected $fillable = ['category_id','name','description','price','image','is_available'];
+
+    public function category() {
+        return $this->belongsTo(Category::class);
+    }
+}
+```
+
+📄 **Order.php**
+
+```php
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+
+class Order extends Model {
+    protected $fillable = ['user_id','total','status','address','payment_status'];
+
+    public function items() {
+        return $this->hasMany(OrderItem::class);
+    }
+    public function user() {
+        return $this->belongsTo(User::class);
+    }
+}
+```
+
+📄 **OrderItem.php**
+
+```php
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+
+class OrderItem extends Model {
+    protected $fillable = ['order_id','product_id','qty','price'];
+
+    public function product() {
+        return $this->belongsTo(Product::class);
+    }
+}
+```
+
+---
+
+### 3️⃣ Contrôleurs – (dans `app/Http/Controllers/`)
+
+📄 **ProductController.php**
+
+```php
+<?php
+namespace App\Http\Controllers;
+
+use App\Models\Product;
+
+class ProductController extends Controller {
+    // Affiche le menu des produits
+    public function index() {
+        $products = Product::where('is_available',true)->paginate(8);
+        return view('products.index', compact('products'));
+    }
+}
+```
+
+📄 **CartController.php**
+
+```php
+<?php
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Product;
+
+class CartController extends Controller {
+
+    public function index() {
+        $cart = session('cart', []);
+        $total = collect($cart)->sum(fn($i) => $i['price'] * $i['qty']);
+        return view('cart.index', compact('cart','total'));
+    }
+
+    public function add(Request $request) {
+        $product = Product::find($request->input('product_id'));
+        if(!$product) return back()->with('error','Produit introuvable');
+
+        $cart = session('cart', []);
+        $id = $product->id;
+        $cart[$id]['id']    = $product->id;
+        $cart[$id]['name']  = $product->name;
+        $cart[$id]['price'] = $product->price;
+        $cart[$id]['qty']   = ($cart[$id]['qty'] ?? 0) + (int)$request->input('qty',1);
+
+        session(['cart' => $cart]);
+        return redirect()->route('cart.index')->with('success','Produit ajouté au panier');
+    }
+
+    public function remove(Request $request) {
+        $cart = session('cart', []);
+        unset($cart[$request->input('product_id')]);
+        session(['cart' => $cart]);
+        return redirect()->route('cart.index');
+    }
+}
+```
+
+📄 **OrderController.php**
+
+```php
+<?php
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Order;
+
+class OrderController extends Controller {
+    public function index() {
+        $orders = auth()->user()->orders()->latest()->get();
+        return view('orders.index', compact('orders'));
+    }
+
+    public function checkout(Request $request) {
+        $user = $request->user();
+        $cart = session('cart', []);
+        if(empty($cart)) return back()->with('error','Panier vide');
+
+        DB::beginTransaction();
+        try {
+            $order = Order::create([
+                'user_id' => $user->id,
+                'address' => $request->input('address',''),
+                'status'  => 'pending',
+                'payment_status' => 'paid' // simulé
+            ]);
+
+            $total = 0;
+            foreach($cart as $item){
+                $order->items()->create([
+                    'product_id' => $item['id'],
+                    'qty'        => $item['qty'],
+                    'price'      => $item['price'],
+                ]);
+                $total += $item['price'] * $item['qty'];
+            }
+
+            $order->update(['total' => $total]);
+            DB::commit();
+            session()->forget('cart');
+            return redirect()->route('home')->with('success','Commande passée');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error','Erreur : '.$e->getMessage());
+        }
+    }
+}
+```
+
+---
+
+### 4️⃣ Routes – (dans `routes/web.php`)
+
+```php
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\OrderController;
+
+Route::get('/', [ProductController::class, 'index'])->name('home');
+
+Route::post('cart/add', [CartController::class,'add'])->name('cart.add');
+Route::get('cart', [CartController::class,'index'])->name('cart.index');
+Route::post('cart/remove', [CartController::class,'remove'])->name('cart.remove');
+
+Route::middleware('auth')->group(function(){
+    Route::get('orders', [OrderController::class,'index'])->name('orders.index');
+    Route::post('order/checkout', [OrderController::class,'checkout'])->name('order.checkout');
+});
+```
+
+---
+
+### 5️⃣ Vues Blade – (dans `resources/views/`)
+
+📄 **layouts/app.blade.php**
+*(un layout simple — tu peux remplacer par celui généré par Breeze)*
+
+```blade
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>FastBite</title>
+    @vite(['resources/css/app.css','resources/js/app.js'])
+</head>
+<body class="p-4">
+<nav>
+    <a href="{{ route('home') }}">Menu</a> |
+    <a href="{{ route('cart.index') }}">Panier ({{ count(session('cart', [])) }})</a>
+    @auth
+        | <a href="{{ route('orders.index') }}">Mes commandes</a>
+        | <form action="/logout" method="POST" style="display:inline">@csrf<button>Déconnexion</button></form>
+    @else
+        | <a href="/login">Connexion</a> | <a href="/register">Inscription</a>
+    @endauth
+</nav>
+<hr>
+@if(session('success'))<p style="color:green">{{ session('success') }}</p>@endif
+@if(session('error'))<p style="color:red">{{ session('error') }}</p>@endif
+@yield('content')
+</body>
+</html>
+```
+
+📄 **products/index.blade.php**
+
+```blade
+@extends('layouts.app')
+
+@section('content')
+<h1>Menu FastBite</h1>
+<div style="display:flex;flex-wrap:wrap;gap:20px">
+@foreach($products as $product)
+  <div style="border:1px solid #ccc;padding:10px;width:200px">
+    <h3>{{ $product->name }}</h3>
+    <p>{{ $product->description }}</p>
+    <p><strong>{{ number_format($product->price,2) }} FCFA</strong></p>
+    <form action="{{ route('cart.add') }}" method="POST">
+      @csrf
+      <input type="hidden" name="product_id" value="{{ $product->id }}">
+      <input type="number" name="qty" value="1" min="1" style="width:60px">
+      <button type="submit">Ajouter</button>
+    </form>
+  </div>
+@endforeach
+</div>
+{{ $products->links() }}
+@endsection
+```
+
+📄 **cart/index.blade.php**
+
+```blade
+@extends('layouts.app')
+
+@section('content')
+<h1>Votre panier</h1>
+@if(empty($cart))
+  <p>Panier vide</p>
+@else
+<table border="1" cellpadding="5">
+<tr><th>Produit</th><th>Qté</th><th>Prix</th><th>Action</th></tr>
+@foreach($cart as $item)
+<tr>
+  <td>{{ $item['name'] }}</td>
+  <td>{{ $item['qty'] }}</td>
+  <td>{{ number_format($item['price'] * $item['qty'],2) }}</td>
+  <td>
+    <form action="{{ route('cart.remove') }}" method="POST">
+      @csrf
+      <input type="hidden" name="product_id" value="{{ $item['id'] }}">
+      <button>Retirer</button>
+    </form>
+  </td>
+</tr>
+@endforeach
+</table>
+<p><strong>Total : {{ number_format($total,2) }} FCFA</strong></p>
+
+@auth
+<form action="{{ route('order.checkout') }}" method="POST">
+  @csrf
+  <input type="text" name="address" placeholder="Adresse de livraison" required>
+  <button>Commander</button>
+</form>
+@else
+<p><a href="/login">Connecte-toi</a> pour commander</p>
+@endauth
+@endif
+@endsection
+```
+
+---
+
+## 🚀 Mise en route
+
+1. Copie ces fichiers dans ton projet Laravel.
+2. Lance les commandes :
+
+```bash
+composer install
+npm install && npm run dev
+php artisan migrate
+php artisan serve
+```
+
+3. Crée un compte utilisateur via `/register`.
+4. Dans phpMyAdmin, ajoute manuellement quelques **categories** et **products** pour tester.
+
+---
+
+## ✅ Résultat
+
+* Page d’accueil `/` : affiche le **menu** (produits).
+* Page `/cart` : affiche le **panier**.
+* Login/Register : déjà prêt (via Breeze).
+* Checkout : crée une commande dans la base.
+* Les admins (role `admin`) pourront plus tard avoir une page spéciale pour gérer les commandes.
+
+---
+
+💡 **Prochaines étapes**
+
+* Ajouter un `Seeder` pour créer des produits automatiquement.
+* Créer une interface Admin.
+* Ajouter le téléchargement d’images pour les produits.
+* Passer en production (hébergement).
+
+---
+
+Ce squelette te donne **100% des fondations**.
+➡️ **Répète l’installation** plusieurs fois (supprimer/recréer le projet) pour bien comprendre les étapes.
+
